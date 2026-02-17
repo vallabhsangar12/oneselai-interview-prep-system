@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import bcrypt from "bcryptjs"
-import { signJWT, setAuthCookie } from "@/src/utils/auth"
+import { signJWT, setAuthCookie } from "@/lib/auth"
 
 interface UserRow {
   id: string
