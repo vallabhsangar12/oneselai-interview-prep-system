@@ -25,19 +25,8 @@ export async function POST(req: NextRequest) {
 
     // Try to use database if available
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          {
-            success: true,
-            session_id: Math.floor(Math.random() * 1000000),
-            message: 'Session created (database unavailable)',
-          },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       const now = new Date()
       const result = await pool.query(

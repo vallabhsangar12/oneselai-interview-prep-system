@@ -2,17 +2,32 @@ import { NextRequest, NextResponse } from 'next/server'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: resultId } = await params
     const token = request.cookies.get('token')?.value
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Without database, return mock data
+    // Try database first, fallback to mock data
+    try {
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
+      const result = await pool.query(
+        `SELECT * FROM interview_results WHERE id = $1`,
+        [resultId]
+      )
+      if (result.rows.length > 0) {
+        return NextResponse.json(result.rows[0])
+      }
+    } catch {
+      // DB not available, return mock data
+    }
+
     const mockResult = {
-      id: params.id,
+      id: resultId,
       session_id: 'session_' + Math.random().toString(36).substr(2, 9),
       user_id: 'user_1',
       overall_score: Math.floor(Math.random() * 40) + 60,

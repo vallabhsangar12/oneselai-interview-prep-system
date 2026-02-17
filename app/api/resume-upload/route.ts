@@ -73,11 +73,23 @@ export async function POST(request: NextRequest) {
 
       // Save resume URL to database
       try {
-        const { queryOne } = await import("@/lib/postgres");
-        await queryOne(
-          "INSERT INTO resumes (user_id, file_url) VALUES ($1, $2) ON CONFLICT (user_id) DO UPDATE SET file_url = $2",
-          [decoded.userId, `/uploads/resumes/${filename}`]
+        const { query, queryOne } = await import("@/lib/postgres");
+        // Check if user already has a resume record
+        const existing = await queryOne(
+          "SELECT id FROM resumes WHERE user_id = $1",
+          [decoded.userId]
         );
+        if (existing) {
+          await query(
+            "UPDATE resumes SET file_url = $1, file_name = $2, updated_at = NOW() WHERE user_id = $3",
+            [`/uploads/resumes/${filename}`, file.name, decoded.userId]
+          );
+        } else {
+          await query(
+            "INSERT INTO resumes (user_id, file_url, file_name) VALUES ($1, $2, $3)",
+            [decoded.userId, `/uploads/resumes/${filename}`, file.name]
+          );
+        }
       } catch {
         // DB not available, but file is saved
       }

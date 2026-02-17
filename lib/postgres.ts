@@ -1,22 +1,20 @@
 import { Pool, type QueryResultRow } from "pg";
 
-const connectionString = process.env.POSTGRES_URL;
+// Default to local PostgreSQL if POSTGRES_URL is not set
+const connectionString =
+  process.env.POSTGRES_URL || "postgresql://postgres:postgres@localhost:5432/oneselai";
 
 let pool: Pool | null = null;
 
 function getPool(): Pool {
   if (!pool) {
-    if (!connectionString) {
-      throw new Error(
-        "POSTGRES_URL environment variable is not set. Cannot connect to database."
-      );
-    }
-
     pool = new Pool({
       connectionString: connectionString,
       max: 10,
       idleTimeoutMillis: 30000,
       connectionTimeoutMillis: 5000,
+      // Disable SSL for local development
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });
 
     pool.on("error", (err) => {

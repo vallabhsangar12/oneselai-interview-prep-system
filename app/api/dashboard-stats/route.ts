@@ -20,20 +20,6 @@ export async function GET(req: NextRequest) {
       const { getPool } = await import('@/lib/postgres')
       const pool = getPool()
 
-      if (!pool) {
-        // Return default empty data
-        return NextResponse.json(
-          {
-            total_interviews: 0,
-            avg_score: 0,
-            best_score: 0,
-            last_interview_score: null,
-            interviews: [],
-          },
-          { status: 200 }
-        )
-      }
-
       // Get total interviews
       const totalRes = await pool.query(
         'SELECT COUNT(*) as count FROM interview_sessions WHERE user_id = $1',

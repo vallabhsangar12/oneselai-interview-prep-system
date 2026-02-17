@@ -1,3 +1,8 @@
+// Re-export server-side auth functions from lib/auth.ts
+// so that routes importing from "@/src/utils/auth" get the correct functions.
+export { signJWT, verifyJWT, setAuthCookie, clearAuthCookie, getUserFromRequest } from "@/lib/auth"
+export type { AuthPayload } from "@/lib/auth"
+
 // Client-side auth check via cookie presence
 // Note: The actual JWT token is httpOnly so JS can't read it,
 // but we check via a lightweight API call to /api/auth/me

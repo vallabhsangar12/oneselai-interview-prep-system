@@ -40,15 +40,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          { error: 'Database unavailable' },
-          { status: 503 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       // Get current user
       const userResult = await pool.query(

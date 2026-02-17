@@ -28,19 +28,8 @@ export async function POST(req: NextRequest) {
 
     // Try to use database if available
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-      
-      if (!pool) {
-        return NextResponse.json(
-          {
-            success: true,
-            message: 'Plan selected (database unavailable - will be saved on next sync)',
-            plan,
-          },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       // Check if subscription exists
       const existing = await pool.query(

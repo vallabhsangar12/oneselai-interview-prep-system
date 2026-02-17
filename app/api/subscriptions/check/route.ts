@@ -24,15 +24,8 @@ export async function GET(req: NextRequest) {
 
     // Try to use database if available
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          { has_subscription: true, plan: 'free', interviews_today: 0, interviews_limit: 1 },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       const result = await pool.query(
         `SELECT plan, interviews_today, interviews_limit, status 

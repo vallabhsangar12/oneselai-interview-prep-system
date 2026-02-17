@@ -6,7 +6,7 @@ export async function POST(req: NextRequest) {
     const res = NextResponse.json({ message: "Logged out successfully" })
 
     const authCookie = clearAuthCookie()
-    res.cookies.set(authCookie.token, "", authCookie.options)
+    res.cookies.set("token", "", authCookie.options)
 
     return res
   } catch (err) {

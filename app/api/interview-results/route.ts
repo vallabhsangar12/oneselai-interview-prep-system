@@ -34,19 +34,8 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          {
-            success: true,
-            result_id: Math.floor(Math.random() * 1000000),
-            message: 'Result saved (database unavailable)',
-          },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       const now = new Date()
       const result = await pool.query(
@@ -125,21 +114,8 @@ export async function GET(req: NextRequest) {
     const resultId = searchParams.get('result_id')
 
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          {
-            id: resultId,
-            overall_score: 0,
-            emotion_score: 0,
-            speech_score: 0,
-            technical_score: 0,
-          },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       const result = await pool.query(
         `SELECT id, session_id, overall_score, emotion_score, speech_score, technical_score, confidence_score, communication_score, summary, feedback, created_at

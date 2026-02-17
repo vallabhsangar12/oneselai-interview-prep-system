@@ -3,9 +3,10 @@ import { verifyJWT } from '@/src/utils/auth'
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id: sessionId } = await params
     const token = req.cookies.get('token')?.value
     if (!token) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -17,28 +18,11 @@ export async function GET(
     }
 
     const userId = (payload as any).userId || (payload as any).sub
-    const sessionId = params.id
 
     // Try to use database if available
     try {
-      const postgres = await import('@/lib/postgres')
-      const { pool } = postgres
-
-      if (!pool) {
-        return NextResponse.json(
-          {
-            id: parseInt(sessionId),
-            interview_type: 'technical',
-            difficulty: 'medium',
-            job_role: 'Software Engineer',
-            experience_years: 5,
-            tech_stack: [],
-            status: 'pending',
-            created_at: new Date().toISOString(),
-          },
-          { status: 200 }
-        )
-      }
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
 
       const result = await pool.query(
         `SELECT id, interview_type, difficulty, job_role, experience_years, tech_stack, status, created_at

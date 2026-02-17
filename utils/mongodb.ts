@@ -1,6 +1,7 @@
 import { MongoClient, type Db } from "mongodb";
 
-const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/oa_logs";
+// Default to local MongoDB if MONGODB_URI is not set
+const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/oneselai";
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
@@ -19,8 +20,8 @@ clientPromise = global._mongoClientPromise;
 
 export async function getDb(): Promise<Db> {
   const connectedClient = await clientPromise;
-  // Extract DB name from URI or default to oa_logs
-  const dbName = new URL(uri).pathname.replace("/", "") || "oa_logs";
+  // Extract DB name from URI or default to oneselai
+  const dbName = new URL(uri).pathname.replace("/", "") || "oneselai";
   return connectedClient.db(dbName);
 }
 

@@ -67,7 +67,7 @@ export async function POST(req: Request) {
     })
 
     const authCookie = setAuthCookie(token, process.env.NODE_ENV === "production")
-    res.cookies.set(authCookie.token, token, authCookie.options)
+    res.cookies.set("token", token, authCookie.options)
 
     return res
   } catch (err) {
