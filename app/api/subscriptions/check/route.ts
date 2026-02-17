@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyJWT } from '@/src/utils/auth'
+import { verifyJWT } from '@/lib/auth'
 
 
 export async function GET(req: NextRequest) {

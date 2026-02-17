@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyJWT } from '@/src/utils/auth'
+import { verifyJWT } from '@/lib/auth'
 import bcrypt from 'bcryptjs'
 
 export async function POST(req: NextRequest) {

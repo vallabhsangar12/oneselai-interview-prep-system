@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { verifyJWT } from '@/src/utils/auth'
+import { verifyJWT } from '@/lib/auth'
 
 const planLimits: Record<string, { interviews_daily: number; interviews_monthly: number }> = {
   free: { interviews_daily: 1, interviews_monthly: 30 },
