@@ -176,10 +176,10 @@ export default function InterviewSessionPage() {
               </div>
               <div>
                 <h3 className="font-semibold text-foreground mb-1">
-                  Interview Engine Integration
+                  Ready to Begin
                 </h3>
                 <p className="text-muted-foreground text-sm">
-                  The AI interview engine will be integrated in the next phase. This session is configured and ready. Your session ID is: <span className="font-mono font-semibold text-purple-600">{sessionId}</span>
+                  Your AI-powered interview is configured and ready. Click "Start AI Interview" below to begin. You will be asked {sessionData.interview_type === 'mixed' ? 'technical and behavioral' : sessionData.interview_type} questions at {sessionData.difficulty} difficulty. Make sure your camera and microphone are accessible.
                 </p>
               </div>
             </div>

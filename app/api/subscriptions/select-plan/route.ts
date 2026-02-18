@@ -44,14 +44,14 @@ export async function POST(req: NextRequest) {
         // Update existing subscription
         await pool.query(
           `UPDATE subscriptions 
-           SET plan = $1, interviews_limit = $2, status = 'active', start_date = $3, updated_at = $4
+           SET plan = $1, interviews_limit = $2, status = 'active', started_at = $3, updated_at = $4
            WHERE user_id = $5`,
           [plan, limits.interviews_daily, now, now, userId]
         )
       } else {
         // Create new subscription
         await pool.query(
-          `INSERT INTO subscriptions (user_id, plan, interviews_limit, start_date, created_at, updated_at)
+          `INSERT INTO subscriptions (user_id, plan, interviews_limit, started_at, created_at, updated_at)
            VALUES ($1, $2, $3, $4, $5, $6)`,
           [userId, plan, limits.interviews_daily, now, now, now]
         )

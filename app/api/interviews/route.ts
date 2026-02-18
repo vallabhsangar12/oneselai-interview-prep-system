@@ -1,78 +1,55 @@
-import { type NextRequest, NextResponse } from "next/server";
-import { getDb } from "@/utils/mongodb";
+import { NextRequest, NextResponse } from 'next/server'
+import { verifyJWT } from '@/lib/auth'
 
-export async function POST(request: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
-    const body = await request.json();
-    const {
-      userId,
-      title,
-      duration,
-      score,
-      transcript,
-      emotionAnalysis,
-      feedback,
-    } = body;
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID required" },
-        { status: 400 }
-      );
+    const token = req.cookies.get('token')?.value
+    if (!token) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const db = await getDb();
-    const result = await db.collection("interview_sessions").insertOne({
-      userId,
-      title: title || "Interview Session",
-      durationSeconds: duration || 0,
-      score: score || 0,
-      transcript: transcript || null,
-      emotionAnalysis: emotionAnalysis || null,
-      feedback: feedback || null,
-      createdAt: new Date(),
-    });
-
-    return NextResponse.json(
-      {
-        message: "Interview saved successfully",
-        insertedId: result.insertedId,
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("Interviews POST error:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-
-export async function GET(request: NextRequest) {
-  try {
-    const userId = request.nextUrl.searchParams.get("userId");
-
-    if (!userId) {
-      return NextResponse.json(
-        { error: "User ID required" },
-        { status: 400 }
-      );
+    const payload = verifyJWT(token)
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
     }
 
-    const db = await getDb();
-    const data = await db
-      .collection("interview_sessions")
-      .find({ userId })
-      .sort({ createdAt: -1 })
-      .toArray();
+    const userId = (payload as any).userId || (payload as any).sub
 
-    return NextResponse.json({ data }, { status: 200 });
+    try {
+      const { getPool } = await import('@/lib/postgres')
+      const pool = getPool()
+
+      const result = await pool.query(
+        `SELECT 
+          ir.id,
+          ir.session_id,
+          ir.interview_type,
+          ir.difficulty,
+          ir.job_role,
+          ir.overall_score,
+          ir.duration_seconds,
+          ir.created_at
+        FROM interview_results ir
+        WHERE ir.user_id = $1
+        ORDER BY ir.created_at DESC
+        LIMIT 50`,
+        [userId]
+      )
+
+      return NextResponse.json({
+        interviews: result.rows,
+      })
+    } catch (dbError) {
+      console.error('Database error fetching interviews:', dbError)
+      return NextResponse.json({
+        interviews: [],
+      })
+    }
   } catch (error) {
-    console.error("Interviews GET error:", error);
+    console.error('Error fetching interviews:', error)
     return NextResponse.json(
-      { error: "Internal server error" },
+      { error: 'Failed to fetch interviews' },
       { status: 500 }
-    );
+    )
   }
 }

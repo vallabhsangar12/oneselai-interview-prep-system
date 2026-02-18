@@ -127,7 +127,7 @@ export default function InterviewPage() {
       let resumeText = ""
       if (data.resume) {
         const fd = new FormData()
-        fd.append("resume", data.resume)
+        fd.append("file", data.resume)
 
         const r = await fetch("/api/resume-upload", {
           method: "POST",
