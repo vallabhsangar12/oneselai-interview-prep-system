@@ -1,25 +1,29 @@
--- =============================================
--- OneselfAI Interview Prep - Local PostgreSQL Setup
--- Run this once: psql -U postgres -f scripts/setup-local-db.sql
--- =============================================
+-- OneselfAI Interview Prep System - Local PostgreSQL Setup
+-- Usage:
+--   createdb oneselai
+--   psql -U postgres -d oneselai -f scripts/setup-local-db.sql
 
--- Create the database (run this separately if needed)
--- CREATE DATABASE oneselai;
-
--- Connect to the database before running the rest
--- \c oneselai;
+CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
 -- =============================================
--- 1. Users table
+-- 1. Users
 -- =============================================
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) UNIQUE NOT NULL,
   password_hash VARCHAR(255) NOT NULL,
-  subscription_id UUID,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  phone VARCHAR(50),
+  bio TEXT,
+  avatar_url TEXT,
+  resume_url TEXT,
+  resume_text TEXT,
+  job_title VARCHAR(255),
+  experience_years INTEGER DEFAULT 0,
+  preferred_role VARCHAR(255),
+  tech_stack TEXT[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
@@ -29,38 +33,27 @@ CREATE TABLE IF NOT EXISTS password_reset_tokens (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
   token VARCHAR(500) NOT NULL UNIQUE,
-  expires_at TIMESTAMP NOT NULL,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  expires_at TIMESTAMP WITH TIME ZONE NOT NULL,
+  used BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
--- 3. Subscriptions
+-- 3. Subscriptions (one per user)
 -- =============================================
 CREATE TABLE IF NOT EXISTS subscriptions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL UNIQUE REFERENCES users(id) ON DELETE CASCADE,
   plan VARCHAR(50) NOT NULL DEFAULT 'free',
-  interviews_today INTEGER NOT NULL DEFAULT 0,
-  interviews_limit INTEGER NOT NULL DEFAULT 1,
-  start_date TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  end_date TIMESTAMP,
   status VARCHAR(50) NOT NULL DEFAULT 'active',
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  interviews_today INTEGER DEFAULT 0,
+  interviews_limit INTEGER DEFAULT 1,
+  last_interview_date DATE,
+  started_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  expires_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
-
--- Add foreign key for users.subscription_id after subscriptions is created
-DO $$
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM information_schema.table_constraints
-    WHERE constraint_name = 'fk_users_subscription'
-  ) THEN
-    ALTER TABLE users
-      ADD CONSTRAINT fk_users_subscription
-      FOREIGN KEY (subscription_id) REFERENCES subscriptions(id) ON DELETE SET NULL;
-  END IF;
-END $$;
 
 -- =============================================
 -- 4. Resumes
@@ -68,10 +61,12 @@ END $$;
 CREATE TABLE IF NOT EXISTS resumes (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  file_url VARCHAR(500),
+  file_url TEXT,
   file_name VARCHAR(255),
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  parsed_text TEXT,
+  skills TEXT[] DEFAULT '{}',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
@@ -80,17 +75,18 @@ CREATE TABLE IF NOT EXISTS resumes (
 CREATE TABLE IF NOT EXISTS interview_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-  interview_type VARCHAR(50) NOT NULL,
-  difficulty VARCHAR(50) NOT NULL,
-  difficulty_level VARCHAR(50),
-  job_role VARCHAR(255),
+  interview_type VARCHAR(100) NOT NULL DEFAULT 'technical',
+  difficulty VARCHAR(50) NOT NULL DEFAULT 'medium',
+  job_role VARCHAR(255) DEFAULT 'Software Engineer',
   experience_years INTEGER DEFAULT 0,
-  tech_stack JSONB DEFAULT '[]'::jsonb,
-  resume_id UUID REFERENCES resumes(id) ON DELETE SET NULL,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending',
+  tech_stack JSONB DEFAULT '[]',
+  status VARCHAR(50) DEFAULT 'pending',
+  question_count INTEGER DEFAULT 5,
   duration_seconds INTEGER DEFAULT 0,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+  started_at TIMESTAMP WITH TIME ZONE,
+  ended_at TIMESTAMP WITH TIME ZONE,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
@@ -98,27 +94,27 @@ CREATE TABLE IF NOT EXISTS interview_sessions (
 -- =============================================
 CREATE TABLE IF NOT EXISTS interview_results (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id UUID REFERENCES users(id) ON DELETE SET NULL,
-  session_id UUID REFERENCES interview_sessions(id) ON DELETE CASCADE,
-  interview_session_id UUID REFERENCES interview_sessions(id) ON DELETE SET NULL,
-  overall_score DECIMAL(5,2),
-  communication_score DECIMAL(5,2),
-  technical_score DECIMAL(5,2),
-  confidence_score DECIMAL(5,2),
-  emotion_score DECIMAL(5,2),
-  speech_score DECIMAL(5,2),
-  score INTEGER,
-  summary TEXT,
+  user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  session_id UUID REFERENCES interview_sessions(id) ON DELETE SET NULL,
+  interview_type VARCHAR(100),
+  difficulty VARCHAR(50),
+  job_role VARCHAR(255),
+  overall_score DECIMAL(5,2) DEFAULT 0,
+  technical_score DECIMAL(5,2) DEFAULT 0,
+  communication_score DECIMAL(5,2) DEFAULT 0,
+  confidence_score DECIMAL(5,2) DEFAULT 0,
+  emotion_score DECIMAL(5,2) DEFAULT 0,
+  speech_score DECIMAL(5,2) DEFAULT 0,
+  question_count INTEGER DEFAULT 0,
+  questions_answered INTEGER DEFAULT 0,
+  duration_seconds INTEGER DEFAULT 0,
+  emotions JSONB DEFAULT '{}',
+  per_question_scores JSONB DEFAULT '[]',
+  strengths TEXT[] DEFAULT '{}',
+  improvements TEXT[] DEFAULT '{}',
   feedback TEXT,
-  breakdown JSONB,
-  face_metrics JSONB,
-  voice_metrics JSONB,
-  text_metrics JSONB,
-  emotion_analysis TEXT,
-  voice_analysis TEXT,
-  duration_seconds INTEGER,
-  created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  transcript JSONB DEFAULT '[]',
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
@@ -129,60 +125,64 @@ CREATE TABLE IF NOT EXISTS contact_submissions (
   name VARCHAR(255) NOT NULL,
   email VARCHAR(255) NOT NULL,
   phone VARCHAR(20),
-  subject VARCHAR(255) NOT NULL,
+  subject VARCHAR(255),
   message TEXT NOT NULL,
   status VARCHAR(50) DEFAULT 'new',
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- =============================================
 -- Indexes
 -- =============================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_token ON password_reset_tokens(token);
-CREATE INDEX IF NOT EXISTS idx_password_reset_tokens_user_id ON password_reset_tokens(user_id);
-CREATE INDEX IF NOT EXISTS idx_subscriptions_user_id ON subscriptions(user_id);
-CREATE INDEX IF NOT EXISTS idx_resumes_user_id ON resumes(user_id);
-CREATE INDEX IF NOT EXISTS idx_interview_sessions_user_id ON interview_sessions(user_id);
-CREATE INDEX IF NOT EXISTS idx_interview_sessions_status ON interview_sessions(status);
-CREATE INDEX IF NOT EXISTS idx_interview_results_user_id ON interview_results(user_id);
-CREATE INDEX IF NOT EXISTS idx_interview_results_session_id ON interview_results(session_id);
-CREATE INDEX IF NOT EXISTS idx_interview_results_interview_session_id ON interview_results(interview_session_id);
-CREATE INDEX IF NOT EXISTS idx_contact_submissions_email ON contact_submissions(email);
+CREATE INDEX IF NOT EXISTS idx_prt_token ON password_reset_tokens(token);
+CREATE INDEX IF NOT EXISTS idx_prt_user ON password_reset_tokens(user_id);
+CREATE INDEX IF NOT EXISTS idx_sub_user ON subscriptions(user_id);
+CREATE INDEX IF NOT EXISTS idx_resumes_user ON resumes(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_user ON interview_sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_status ON interview_sessions(status);
+CREATE INDEX IF NOT EXISTS idx_results_user ON interview_results(user_id);
+CREATE INDEX IF NOT EXISTS idx_results_session ON interview_results(session_id);
+CREATE INDEX IF NOT EXISTS idx_results_created ON interview_results(created_at DESC);
 
 -- =============================================
--- Auto-update trigger for updated_at columns
+-- Auto-update trigger
 -- =============================================
-CREATE OR REPLACE FUNCTION update_updated_at_column()
+CREATE OR REPLACE FUNCTION update_updated_at()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = CURRENT_TIMESTAMP;
+  NEW.updated_at = NOW();
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
 
--- Drop triggers first (safe re-run)
-DROP TRIGGER IF EXISTS update_users_updated_at ON users;
-DROP TRIGGER IF EXISTS update_resumes_updated_at ON resumes;
-DROP TRIGGER IF EXISTS update_interview_sessions_updated_at ON interview_sessions;
-DROP TRIGGER IF EXISTS update_subscriptions_updated_at ON subscriptions;
-
-CREATE TRIGGER update_users_updated_at
-  BEFORE UPDATE ON users
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_resumes_updated_at
-  BEFORE UPDATE ON resumes
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_interview_sessions_updated_at
-  BEFORE UPDATE ON interview_sessions
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
-
-CREATE TRIGGER update_subscriptions_updated_at
-  BEFORE UPDATE ON subscriptions
-  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+DO $$
+DECLARE t TEXT;
+BEGIN
+  FOR t IN SELECT unnest(ARRAY['users','subscriptions','resumes','interview_sessions'])
+  LOOP
+    EXECUTE format('DROP TRIGGER IF EXISTS trg_updated_at ON %I', t);
+    EXECUTE format('CREATE TRIGGER trg_updated_at BEFORE UPDATE ON %I FOR EACH ROW EXECUTE FUNCTION update_updated_at()', t);
+  END LOOP;
+END;
+$$;
 
 -- =============================================
--- Done! Database is ready for local development.
+-- Auto-create free subscription on user signup
 -- =============================================
+CREATE OR REPLACE FUNCTION auto_create_subscription()
+RETURNS TRIGGER AS $$
+BEGIN
+  INSERT INTO subscriptions (user_id, plan, status, interviews_limit)
+  VALUES (NEW.id, 'free', 'active', 1)
+  ON CONFLICT (user_id) DO NOTHING;
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP TRIGGER IF EXISTS trg_user_subscription ON users;
+CREATE TRIGGER trg_user_subscription
+  AFTER INSERT ON users
+  FOR EACH ROW EXECUTE FUNCTION auto_create_subscription();
+
+SELECT 'OneselfAI database schema created successfully' AS status;

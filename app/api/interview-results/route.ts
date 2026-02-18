@@ -14,21 +14,33 @@ export async function POST(req: NextRequest) {
     }
 
     const userId = (payload as any).userId || (payload as any).sub
+    const body = await req.json()
+
     const {
       session_id,
       overall_score,
+      technical_score,
+      communication_score,
+      confidence_score,
       emotion_score,
       speech_score,
-      technical_score,
-      confidence_score,
-      communication_score,
-      summary,
+      question_count,
+      questions_answered,
+      duration_seconds,
+      emotions,
+      per_question_scores,
+      strengths,
+      improvements,
       feedback,
-    } = await req.json()
+      transcript,
+      interview_type,
+      difficulty,
+      job_role,
+    } = body
 
     if (!session_id || overall_score === undefined) {
       return NextResponse.json(
-        { error: 'Missing required fields' },
+        { error: 'Missing required fields: session_id and overall_score' },
         { status: 400 }
       )
     }
@@ -37,57 +49,58 @@ export async function POST(req: NextRequest) {
       const { getPool } = await import('@/lib/postgres')
       const pool = getPool()
 
-      const now = new Date()
       const result = await pool.query(
         `INSERT INTO interview_results 
-         (session_id, user_id, overall_score, emotion_score, speech_score, technical_score, confidence_score, communication_score, summary, feedback, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+         (user_id, session_id, interview_type, difficulty, job_role,
+          overall_score, technical_score, communication_score, confidence_score, emotion_score, speech_score,
+          question_count, questions_answered, duration_seconds,
+          emotions, per_question_scores, strengths, improvements, feedback, transcript)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
          RETURNING id`,
         [
-          session_id,
           userId,
+          session_id,
+          interview_type || null,
+          difficulty || null,
+          job_role || null,
           overall_score,
-          emotion_score || null,
-          speech_score || null,
-          technical_score || null,
-          confidence_score || null,
-          communication_score || null,
-          summary || null,
+          technical_score || 0,
+          communication_score || 0,
+          confidence_score || 0,
+          emotion_score || 0,
+          speech_score || 0,
+          question_count || 0,
+          questions_answered || 0,
+          duration_seconds || 0,
+          JSON.stringify(emotions || {}),
+          JSON.stringify(per_question_scores || []),
+          strengths || [],
+          improvements || [],
           feedback || null,
-          now,
-          now,
+          JSON.stringify(transcript || []),
         ]
       )
 
-      // Also update the interview session status
+      // Update session status
       await pool.query(
-        'UPDATE interview_sessions SET status = $1, updated_at = $2 WHERE id = $3',
-        ['completed', now, session_id]
+        `UPDATE interview_sessions SET status = 'completed', ended_at = NOW(), duration_seconds = $1 WHERE id = $2`,
+        [duration_seconds || 0, session_id]
       )
 
-      const resultId = result.rows[0].id
-
-      return NextResponse.json(
-        {
-          success: true,
-          result_id: resultId,
-          message: 'Interview result saved',
-        },
-        { status: 200 }
-      )
+      return NextResponse.json({
+        success: true,
+        result_id: result.rows[0].id,
+        message: 'Interview result saved',
+      })
     } catch (dbError) {
-      console.error('[v0] Database error in interview-results:', dbError)
+      console.error('Database error saving interview result:', dbError)
       return NextResponse.json(
-        {
-          success: true,
-          result_id: Math.floor(Math.random() * 1000000),
-          message: 'Result saved (database unavailable)',
-        },
-        { status: 200 }
+        { error: 'Database error saving results' },
+        { status: 500 }
       )
     }
   } catch (error) {
-    console.error('[v0] Error saving interview result:', error)
+    console.error('Error saving interview result:', error)
     return NextResponse.json(
       { error: 'Failed to save interview result' },
       { status: 500 }
@@ -108,48 +121,32 @@ export async function GET(req: NextRequest) {
     }
 
     const userId = (payload as any).userId || (payload as any).sub
+    const resultId = req.nextUrl.searchParams.get('result_id')
 
-    // Get result_id from query params
-    const searchParams = req.nextUrl.searchParams
-    const resultId = searchParams.get('result_id')
+    if (!resultId) {
+      return NextResponse.json({ error: 'Missing result_id' }, { status: 400 })
+    }
 
     try {
       const { getPool } = await import('@/lib/postgres')
       const pool = getPool()
 
       const result = await pool.query(
-        `SELECT id, session_id, overall_score, emotion_score, speech_score, technical_score, confidence_score, communication_score, summary, feedback, created_at
-         FROM interview_results
-         WHERE id = $1 AND user_id = $2`,
+        `SELECT * FROM interview_results WHERE id = $1 AND user_id = $2`,
         [resultId, userId]
       )
 
       if (result.rows.length === 0) {
-        return NextResponse.json(
-          { error: 'Result not found' },
-          { status: 404 }
-        )
+        return NextResponse.json({ error: 'Result not found' }, { status: 404 })
       }
 
-      return NextResponse.json(result.rows[0], { status: 200 })
+      return NextResponse.json(result.rows[0])
     } catch (dbError) {
-      console.error('[v0] Database error in GET interview-results:', dbError)
-      return NextResponse.json(
-        {
-          id: resultId,
-          overall_score: 0,
-          emotion_score: 0,
-          speech_score: 0,
-          technical_score: 0,
-        },
-        { status: 200 }
-      )
+      console.error('Database error fetching interview result:', dbError)
+      return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
   } catch (error) {
-    console.error('[v0] Error getting interview result:', error)
-    return NextResponse.json(
-      { error: 'Failed to get interview result' },
-      { status: 500 }
-    )
+    console.error('Error getting interview result:', error)
+    return NextResponse.json({ error: 'Failed to get interview result' }, { status: 500 })
   }
 }

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { verifyJWT } from '@/lib/auth'
 
 export async function GET(
   request: NextRequest,
@@ -11,64 +12,66 @@ export async function GET(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    // Try database first, fallback to mock data
+    const payload = verifyJWT(token)
+    if (!payload) {
+      return NextResponse.json({ error: 'Invalid token' }, { status: 401 })
+    }
+
+    const userId = (payload as any).userId || (payload as any).sub
+
     try {
       const { getPool } = await import('@/lib/postgres')
       const pool = getPool()
       const result = await pool.query(
-        `SELECT * FROM interview_results WHERE id = $1`,
-        [resultId]
+        `SELECT ir.*, 
+                is2.interview_type as session_type, 
+                is2.difficulty as session_difficulty,
+                is2.job_role as session_job_role,
+                is2.tech_stack as session_tech_stack,
+                is2.experience_years as session_experience_years
+         FROM interview_results ir
+         LEFT JOIN interview_sessions is2 ON ir.session_id = is2.id
+         WHERE ir.id = $1 AND ir.user_id = $2`,
+        [resultId, userId]
       )
+
       if (result.rows.length > 0) {
-        return NextResponse.json(result.rows[0])
+        const row = result.rows[0]
+        return NextResponse.json({
+          id: row.id,
+          session_id: row.session_id,
+          user_id: row.user_id,
+          interview_type: row.interview_type || row.session_type || 'technical',
+          difficulty: row.difficulty || row.session_difficulty || 'medium',
+          job_role: row.job_role || row.session_job_role || 'Software Engineer',
+          tech_stack: row.session_tech_stack || [],
+          experience_years: row.session_experience_years || 0,
+          overall_score: parseFloat(row.overall_score) || 0,
+          technical_score: parseFloat(row.technical_score) || 0,
+          communication_score: parseFloat(row.communication_score) || 0,
+          confidence_score: parseFloat(row.confidence_score) || 0,
+          emotion_score: parseFloat(row.emotion_score) || 0,
+          speech_score: parseFloat(row.speech_score) || 0,
+          question_count: row.question_count || 0,
+          questions_answered: row.questions_answered || 0,
+          duration_seconds: row.duration_seconds || 0,
+          emotions: row.emotions || {},
+          per_question_scores: row.per_question_scores || [],
+          strengths: row.strengths || [],
+          improvements: row.improvements || [],
+          feedback: row.feedback || '',
+          transcript: row.transcript || [],
+          created_at: row.created_at,
+        })
       }
-    } catch {
-      // DB not available, return mock data
-    }
 
-    const mockResult = {
-      id: resultId,
-      session_id: 'session_' + Math.random().toString(36).substr(2, 9),
-      user_id: 'user_1',
-      overall_score: Math.floor(Math.random() * 40) + 60,
-      facial_emotion_score: Math.floor(Math.random() * 40) + 60,
-      voice_analysis_score: Math.floor(Math.random() * 40) + 60,
-      content_score: Math.floor(Math.random() * 40) + 60,
-      confidence_level: Math.floor(Math.random() * 40) + 60,
-      emotion_data: {
-        primary: 'confident',
-        confidence: Math.floor(Math.random() * 40) + 60,
-        timeline: [
-          { timestamp: 0, emotion: 'neutral' },
-          { timestamp: 30, emotion: 'confident' },
-          { timestamp: 60, emotion: 'happy' },
-        ],
-      },
-      voice_data: {
-        clarity: Math.floor(Math.random() * 40) + 60,
-        pace: Math.floor(Math.random() * 40) + 60,
-        tone: Math.floor(Math.random() * 40) + 60,
-        pronunciation: Math.floor(Math.random() * 40) + 60,
-      },
-      feedback: 'Great interview! You demonstrated strong communication skills and technical knowledge. Your facial expressions showed confidence throughout the interview. Consider working on pacing to give more thoughtful pauses between answers.',
-      strengths: [
-        'Clear communication and articulation',
-        'Good eye contact and facial expression',
-        'Strong technical knowledge',
-        'Professional demeanor',
-      ],
-      improvements: [
-        'Take more time to think before answering',
-        'Use more concrete examples',
-        'Improve voice clarity in technical explanations',
-        'Add more storytelling to answers',
-      ],
-      completed_at: new Date().toISOString(),
+      return NextResponse.json({ error: 'Result not found' }, { status: 404 })
+    } catch (dbError) {
+      console.error('Database error fetching result:', dbError)
+      return NextResponse.json({ error: 'Database error' }, { status: 500 })
     }
-
-    return NextResponse.json(mockResult)
   } catch (error) {
-    console.error('[v0] Error fetching results:', error)
+    console.error('Error fetching interview result:', error)
     return NextResponse.json(
       { error: 'Failed to fetch interview results' },
       { status: 500 }
