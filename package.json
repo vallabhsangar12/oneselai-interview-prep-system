@@ -8,7 +8,7 @@
     "lint": "eslint .",
     "start": "next start",
     "setup": "node scripts/setup-local.js",
-    "db:setup": "psql postgresql://postgres:postgres@localhost:5432/oneselai -f scripts/setup-local-db.sql"
+    "db:setup": "psql \"postgresql://postgres:vallabh@localhost:5433/oneself-ai-interview\" -f scripts/setup-local-db.sql"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.10.0",

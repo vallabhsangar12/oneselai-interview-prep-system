@@ -1,15 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_dev_secret";
-
-interface JwtPayload {
-  userId: string;
-  email: string;
-  name: string;
-}
+import { verifyJWT } from "@/lib/auth";
 
 interface UserRow {
   id: string;
@@ -25,10 +17,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let decoded: JwtPayload;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    } catch {
+    const decoded = verifyJWT(token);
+    if (!decoded) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -64,13 +54,9 @@ export async function POST(req: Request) {
       );
 
       if (!user) {
-        return NextResponse.json(
-          { error: "User not found" },
-          { status: 404 }
-        );
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
 
-      // Verify current password
       const isValid = await bcrypt.compare(currentPassword, user.password_hash);
       if (!isValid) {
         return NextResponse.json(
@@ -79,10 +65,7 @@ export async function POST(req: Request) {
         );
       }
 
-      // Hash new password
       const hashedPassword = await bcrypt.hash(newPassword, 10);
-
-      // Update password
       await query(
         "UPDATE users SET password_hash = $1 WHERE id = $2",
         [hashedPassword, decoded.userId]

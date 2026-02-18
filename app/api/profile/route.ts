@@ -1,14 +1,6 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
-
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_dev_secret";
-
-interface JwtPayload {
-  userId: string;
-  email: string;
-  name: string;
-}
+import { verifyJWT, signJWT } from "@/lib/auth";
 
 export async function GET() {
   try {
@@ -19,10 +11,8 @@ export async function GET() {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let decoded: JwtPayload;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    } catch {
+    const decoded = verifyJWT(token);
+    if (!decoded) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -80,10 +70,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let decoded: JwtPayload;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    } catch {
+    const decoded = verifyJWT(token);
+    if (!decoded) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -100,11 +88,11 @@ export async function PUT(req: Request) {
       // DB not available - still update JWT
     }
 
-    const newToken = jwt.sign(
-      { userId: decoded.userId, email: decoded.email, name: name.trim() },
-      JWT_SECRET,
-      { expiresIn: "7d" }
-    );
+    const newToken = signJWT({
+      userId: decoded.userId,
+      email: decoded.email,
+      name: name.trim(),
+    });
 
     const res = NextResponse.json({ message: "Profile updated", user: { name: name.trim() } });
     res.cookies.set("token", newToken, {

@@ -19,7 +19,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 
-const POSTGRES_URL = process.env.POSTGRES_URL || 'postgresql://postgres:postgres@localhost:5432/oneselai';
+const POSTGRES_URL = process.env.POSTGRES_URL || 'postgresql://postgres:vallabh@localhost:5433/oneself-ai-interview';
 
 function log(msg) {
   console.log(`[SETUP] ${msg}`);
@@ -60,7 +60,7 @@ async function setupPostgres() {
   // Try to create the database
   try {
     log(`  Attempting to create database "${dbName}"...`);
-    execSync(`psql "${baseUrl}" -c "CREATE DATABASE ${dbName};"`, { 
+    execSync(`psql "${baseUrl}" -c 'CREATE DATABASE "${dbName}";'`, { 
       stdio: 'pipe',
       timeout: 10000 
     });
@@ -71,8 +71,8 @@ async function setupPostgres() {
       log(`  Database "${dbName}" already exists.`);
     } else {
       logError(`  Could not create database. You may need to create it manually:`);
-      logError(`    createdb ${dbName}`);
-      logError(`  Or: psql -U postgres -c "CREATE DATABASE ${dbName};"`);
+      logError(`    createdb -p ${url.port || 5433} "${dbName}"`);
+      logError(`  Or: psql -U postgres -p ${url.port || 5433} -c 'CREATE DATABASE "${dbName}";'`);
     }
   }
 
@@ -95,7 +95,7 @@ async function setupPostgres() {
 
 async function checkMongoDB() {
   log('Checking MongoDB...');
-  const mongoUri = process.env.MONGODB_URI || 'mongodb://localhost:27017/oneselai';
+  const mongoUri = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/oneself-ai-interview';
   
   try {
     // Dynamic import to handle if mongodb is not installed yet

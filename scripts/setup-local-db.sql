@@ -1,7 +1,7 @@
 -- OneselfAI Interview Prep System - Local PostgreSQL Setup
 -- Usage:
---   createdb oneselai
---   psql -U postgres -d oneselai -f scripts/setup-local-db.sql
+--   createdb "oneself-ai-interview"
+--   psql -U postgres -p 5433 -d "oneself-ai-interview" -f scripts/setup-local-db.sql
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
@@ -185,4 +185,4 @@ CREATE TRIGGER trg_user_subscription
   AFTER INSERT ON users
   FOR EACH ROW EXECUTE FUNCTION auto_create_subscription();
 
-SELECT 'OneselfAI database schema created successfully' AS status;
+SELECT 'oneself-ai-interview database schema created successfully' AS status;

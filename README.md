@@ -1,14 +1,15 @@
 # OneselfAI - AI Interview Preparation System
 
-An AI-powered interview preparation platform with resume analysis, dynamic question generation, emotion/voice analysis, and performance tracking.
+An AI-powered interview preparation platform with resume analysis, dynamic question generation, real-time speech recognition, emotion detection, and performance tracking.
 
 ## Tech Stack
 
-- **Frontend:** Next.js 16, React 19, Tailwind CSS 4, shadcn/ui
+- **Frontend:** Next.js 16, React 19, Tailwind CSS 4, shadcn/ui, Recharts
 - **Backend:** Next.js API Routes (no separate server needed)
-- **Databases:** PostgreSQL (users, sessions, results) + MongoDB (logs, emotion data, voice data)
+- **Databases:** PostgreSQL (users, sessions, results) + MongoDB (logs, analytics)
+- **AI:** OpenAI GPT for question generation and answer evaluation
 - **Auth:** JWT with httpOnly cookies, bcrypt password hashing
-- **File Uploads:** Local filesystem (`./uploads/` and `./public/uploads/`)
+- **File Uploads:** Local filesystem
 
 ---
 
@@ -29,8 +30,7 @@ brew services start mongodb-community
 
 ### Quick install (Ubuntu/Debian):
 ```bash
-sudo apt update
-sudo apt install nodejs npm postgresql mongodb
+sudo apt update && sudo apt install nodejs npm postgresql mongodb
 sudo systemctl start postgresql
 sudo systemctl start mongod
 ```
@@ -61,35 +61,36 @@ The project includes a `.env.local` file with local defaults. If it's missing, c
 cp .env.example .env.local
 ```
 
-**Default `.env.local` contents:**
+**Your `.env.local` should contain:**
 ```env
-POSTGRES_URL=postgresql://postgres:postgres@localhost:5432/oneselai
-MONGODB_URI=mongodb://localhost:27017/oneselai
-JWT_SECRET=local_dev_jwt_secret_key_change_in_production
+MONGODB_URI=mongodb://127.0.0.1:27017/oneself-ai-interview
+JWT_SECRET=a2eeeca2e128f793febbed61e2a57a60455be38c182af4fb795fdf8d743bb7bd
+UPLOAD_DIR=OA-version-3/uploads/resumes/
 NODE_ENV=development
-UPLOAD_DIR=./uploads
+POSTGRES_URL=postgresql://postgres:vallabh@localhost:5433/oneself-ai-interview
+OPENAI_API_KEY=sk-your-openai-api-key-here
+AUTH_SECRET=your-auth-secret
 ```
 
-> **Note:** If your local PostgreSQL uses a different username/password, update `POSTGRES_URL` accordingly.
+> **Important:** Update `POSTGRES_URL` if your local PostgreSQL uses a different password or port. The above assumes user `postgres`, password `vallabh`, port `5433`.
 
 ### 4. Create the PostgreSQL database
 ```bash
-# Create the database
-createdb oneselai
+# If your PostgreSQL runs on port 5433:
+psql -U postgres -p 5433 -c 'CREATE DATABASE "oneself-ai-interview";'
 
-# Or via psql:
-psql -U postgres -c "CREATE DATABASE oneselai;"
+# Or if using default port 5432:
+psql -U postgres -c 'CREATE DATABASE "oneself-ai-interview";'
 ```
+
+> **Note:** The database name has hyphens, so it must be quoted in SQL.
 
 ### 5. Run the database schema migration
 ```bash
-psql -U postgres -d oneselai -f scripts/setup-local-db.sql
+psql "postgresql://postgres:vallabh@localhost:5433/oneself-ai-interview" -f scripts/setup-local-db.sql
 ```
 
-Or if you have a password set:
-```bash
-psql postgresql://postgres:postgres@localhost:5432/oneselai -f scripts/setup-local-db.sql
-```
+This creates all 7 tables (users, subscriptions, interview_sessions, interview_results, etc.), indexes, triggers, and auto-subscription on user signup.
 
 ### 6. Verify MongoDB is running
 ```bash
@@ -116,10 +117,13 @@ Navigate to **http://localhost:3000** in your browser.
 
 1. **Register** - Create an account at `/register`
 2. **Login** - Sign in at `/login`
-3. **Dashboard** - View your interview history and stats at `/dashboard`
-4. **Start Interview** - Go to `/interview-ui` to begin a practice interview
-5. **Upload Resume** - Upload your PDF resume for personalized questions
-6. **View Results** - Check scores and feedback after each interview
+3. **Dashboard** - View your interview history, stats, and score charts at `/dashboard`
+4. **Start Interview** - Go to `/interview` to configure and start a practice session
+5. **Conduct Interview** - Answer AI-generated questions with speech recognition and webcam
+6. **View Results** - Check scores, per-question feedback, strengths, and improvements
+7. **Interview History** - Browse all past sessions at `/interview/history`
+8. **Upload Resume** - Upload your PDF resume for AI-personalized questions
+9. **Profile** - Manage your profile and change password at `/profile`
 
 ---
 
@@ -128,26 +132,13 @@ Navigate to **http://localhost:3000** in your browser.
 ### PostgreSQL Tables
 | Table | Purpose |
 |-------|---------|
-| `users` | User accounts (email, name, password hash) |
+| `users` | User accounts (email, name, password hash, profile) |
 | `password_reset_tokens` | Password reset flow |
-| `subscriptions` | User plan management (free/basic/pro) |
+| `subscriptions` | Plan management (free/basic/pro), auto-created on signup |
 | `resumes` | Resume file metadata |
-| `interview_sessions` | Interview session tracking |
-| `interview_results` | Scores, feedback, metrics |
+| `interview_sessions` | Session tracking (type, difficulty, role, status) |
+| `interview_results` | Scores, feedback, per-question data, transcript |
 | `contact_submissions` | Contact form data |
-
-### MongoDB Collections (auto-created)
-| Collection | Purpose |
-|------------|---------|
-| `interview_sessions` | Session logs |
-| `interview_logs` | Detailed interview transcripts |
-| `emotion_batches` | Facial emotion raw data |
-| `performance_reports` | Aggregated emotion metrics |
-| `voice_batches` | Voice analysis raw data |
-| `voice_reports` | Aggregated voice metrics |
-| `text_sentiment_logs` | Text sentiment scores |
-| `resumes` | Parsed resume text |
-| `pre_interview_setup` | Pre-interview configuration |
 
 ---
 
@@ -156,68 +147,25 @@ Navigate to **http://localhost:3000** in your browser.
 | Route | Method | Description |
 |-------|--------|-------------|
 | `/api/register` | POST | User registration |
-| `/api/login` | POST | User login |
-| `/api/auth/me` | GET | Get current user |
-| `/api/auth/logout` | POST | Logout |
-| `/api/auth/forgot-password` | POST | Request password reset |
+| `/api/login` | POST | User login (JWT cookie) |
+| `/api/auth/me` | GET | Get current authenticated user |
+| `/api/auth/logout` | POST | Logout (clear cookie) |
+| `/api/auth/forgot-password` | POST | Request password reset email |
 | `/api/auth/reset-password` | POST | Reset password with token |
-| `/api/auth/change-password` | POST | Change password (authenticated) |
 | `/api/profile` | GET/PUT | Get/update user profile |
-| `/api/profile/change-password` | POST | Change password via profile |
-| `/api/dashboard` | GET | Dashboard data with stats |
-| `/api/dashboard-stats` | GET | Interview statistics |
+| `/api/profile/change-password` | POST | Change password |
+| `/api/dashboard-stats` | GET | Dashboard statistics + charts |
+| `/api/interviews` | GET | Interview history list |
 | `/api/interview-session` | POST | Create interview session |
-| `/api/interview-session/[id]` | GET | Get session details |
-| `/api/interview/start` | POST | Start interview |
-| `/api/interview/questions` | POST | Generate questions |
-| `/api/interview/end` | POST | End interview, get score |
-| `/api/interview-results` | GET/POST | Get/save results |
-| `/api/interview-results/[id]` | GET | Get specific result |
-| `/api/interview-score` | POST | Calculate interview score |
-| `/api/qa/route` | POST | Generate Q&A |
-| `/api/qa/generate` | POST | Generate questions from resume |
-| `/api/emotion` | POST | Submit face emotion data |
-| `/api/voice-emotion` | POST | Submit voice analysis data |
-| `/api/text-sentiment` | POST | Analyze text sentiment |
+| `/api/interview-session/[id]` | GET/PATCH | Get/update session |
+| `/api/interview/generate-questions` | POST | AI-powered question generation |
+| `/api/interview/evaluate-answer` | POST | AI-powered answer evaluation |
+| `/api/interview-results` | GET/POST | Get/save interview results |
+| `/api/interview-results/[id]` | GET | Get specific result detail |
 | `/api/resume-upload` | POST/DELETE | Upload/delete resume |
-| `/api/resume/parse` | POST | Parse resume PDF |
 | `/api/contact` | POST | Submit contact form |
 | `/api/subscriptions/check` | GET | Check subscription status |
 | `/api/subscriptions/select-plan` | POST | Select subscription plan |
-
----
-
-## Project Structure
-
-```
-oneselai-interview-prep-system/
-├── app/                    # Next.js App Router pages & API routes
-│   ├── api/               # API endpoints
-│   ├── dashboard/         # Dashboard page
-│   ├── interview/         # Interview pages
-│   ├── login/            # Login page
-│   ├── register/         # Registration page
-│   └── profile/          # Profile pages
-├── components/            # React components
-│   ├── ui/               # shadcn/ui components
-│   ├── navbar.tsx         # Navigation bar
-│   ├── footer.tsx         # Footer
-│   └── ai-interviewer.tsx # AI interview component
-├── lib/                   # Server utilities
-│   ├── auth.ts           # JWT auth functions
-│   ├── postgres.ts       # PostgreSQL connection
-│   ├── scoring.ts        # Interview scoring logic
-│   └── file-storage.ts   # File upload handling
-├── utils/                 # Shared utilities
-│   ├── mongodb.ts        # MongoDB connection
-│   └── resumeAnalyzer.ts # Resume text analysis
-├── scripts/              # Setup & migration scripts
-│   ├── setup-local-db.sql # Complete DB schema
-│   └── setup-local.js    # Automated setup script
-├── .env.local            # Environment variables
-├── .env.example          # Environment template
-└── package.json          # Dependencies & scripts
-```
 
 ---
 
@@ -228,21 +176,19 @@ npm run dev        # Start development server (http://localhost:3000)
 npm run build      # Build for production
 npm run start      # Start production server
 npm run lint       # Run ESLint
-npm run db:setup   # Run PostgreSQL schema migration
+npm run setup      # Automated local setup (creates DB, runs migrations)
+npm run db:setup   # Run PostgreSQL schema migration only
 ```
 
 ---
 
 ## Troubleshooting
 
-### "POSTGRES_URL environment variable is not set"
-- Make sure `.env.local` exists with the correct PostgreSQL URL
-- Default: `postgresql://postgres:postgres@localhost:5432/oneselai`
-
 ### "Cannot connect to PostgreSQL"
-- Ensure PostgreSQL is running: `pg_isready`
-- Check if the database exists: `psql -U postgres -l | grep oneselai`
-- Create it if missing: `createdb oneselai`
+- Ensure PostgreSQL is running: `pg_isready -p 5433`
+- Check your port: your PostgreSQL may be on port `5433` instead of the default `5432`
+- Check if the database exists: `psql -U postgres -p 5433 -l | grep oneself-ai-interview`
+- Create it if missing: `psql -U postgres -p 5433 -c 'CREATE DATABASE "oneself-ai-interview";'`
 
 ### "MongoDB connection failed"
 - Ensure MongoDB is running: `mongosh --eval "db.adminCommand('ping')"`
@@ -254,7 +200,10 @@ npm run db:setup   # Run PostgreSQL schema migration
 
 ### Resume upload fails
 - Ensure the upload directories exist: `mkdir -p uploads/resumes public/uploads/resumes`
-- Check file permissions on the uploads directory
+
+### AI questions not working
+- Ensure `OPENAI_API_KEY` is set in `.env.local`
+- The system falls back to built-in questions if OpenAI is unavailable
 
 ---
 
@@ -266,7 +215,7 @@ After setup, verify these work:
 - [ ] Register a new account at `/register`
 - [ ] Login with the account at `/login`
 - [ ] Dashboard loads at `/dashboard`
+- [ ] Start an interview at `/interview`
+- [ ] Interview conduct page records speech and shows webcam
+- [ ] Results page shows scores and feedback
 - [ ] Profile page loads at `/profile`
-- [ ] Interview setup works at `/interview-ui`
-- [ ] Contact form submits at `/contact`
-- [ ] `http://localhost:3000/api/debug-env` shows all env vars as SET

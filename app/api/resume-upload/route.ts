@@ -1,16 +1,8 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import jwt from "jsonwebtoken";
 import fs from "fs/promises";
 import path from "path";
-
-const JWT_SECRET = process.env.JWT_SECRET || "fallback_dev_secret";
-
-interface JwtPayload {
-  userId: string;
-  email: string;
-  name: string;
-}
+import { verifyJWT } from "@/lib/auth";
 
 const UPLOADS_DIR = path.join(process.cwd(), "public", "uploads", "resumes");
 
@@ -23,10 +15,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let decoded: JwtPayload;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    } catch {
+    const decoded = verifyJWT(token);
+    if (!decoded) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
@@ -74,7 +64,6 @@ export async function POST(request: NextRequest) {
       // Save resume URL to database
       try {
         const { query, queryOne } = await import("@/lib/postgres");
-        // Check if user already has a resume record
         const existing = await queryOne(
           "SELECT id FROM resumes WHERE user_id = $1",
           [decoded.userId]
@@ -128,15 +117,12 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    let decoded: JwtPayload;
-    try {
-      decoded = jwt.verify(token, JWT_SECRET) as JwtPayload;
-    } catch {
+    const decoded = verifyJWT(token);
+    if (!decoded) {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
 
     try {
-      // Delete from database
       const { queryOne } = await import("@/lib/postgres");
       const resume = await queryOne<{ file_url: string }>(
         "SELECT file_url FROM resumes WHERE user_id = $1",
@@ -144,37 +130,28 @@ export async function DELETE(request: NextRequest) {
       );
 
       if (resume?.file_url) {
-        // Delete file from filesystem
         try {
           const filename = path.basename(resume.file_url);
           const filepath = path.join(UPLOADS_DIR, filename);
-          await fs.unlink(filepath).catch(() => {
-            // File might not exist, ignore
-          });
+          await fs.unlink(filepath).catch(() => {});
         } catch {
           // Ignore file deletion errors
         }
       }
 
-      // Delete from database
       await queryOne("DELETE FROM resumes WHERE user_id = $1", [decoded.userId]);
-
       return NextResponse.json({ message: "Resume deleted successfully" });
     } catch {
-      // DB not available, still delete file if exists
       try {
         const files = await fs.readdir(UPLOADS_DIR);
-        for (const file of files) {
-          if (file.startsWith(`${decoded.userId}-`)) {
-            await fs.unlink(path.join(UPLOADS_DIR, file)).catch(() => {
-              // Ignore errors
-            });
+        for (const f of files) {
+          if (f.startsWith(`${decoded.userId}-`)) {
+            await fs.unlink(path.join(UPLOADS_DIR, f)).catch(() => {});
           }
         }
       } catch {
         // Directory might not exist
       }
-
       return NextResponse.json({ message: "Resume deleted" });
     }
   } catch (error) {

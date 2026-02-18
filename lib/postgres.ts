@@ -2,7 +2,7 @@ import { Pool, type QueryResultRow } from "pg";
 
 // Default to local PostgreSQL if POSTGRES_URL is not set
 const connectionString =
-  process.env.POSTGRES_URL || "postgresql://postgres:postgres@localhost:5432/oneselai";
+  process.env.POSTGRES_URL || "postgresql://postgres:vallabh@localhost:5433/oneself-ai-interview";
 
 let pool: Pool | null = null;
 
