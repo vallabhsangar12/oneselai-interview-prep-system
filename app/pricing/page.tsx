@@ -103,7 +103,7 @@ export default function PricingPage() {
 
   const handleSelectPlan = useCallback(async (planId: string) => {
     if (activePlan === planId) {
-      toast.info('This is already your active plan.')
+      toast.info('Current Plan', 'This is already your active plan.')
       return
     }
 
@@ -119,11 +119,11 @@ export default function PricingPage() {
       if (!res.ok) {
         const data = await res.json()
         if (res.status === 401) {
-          toast.error('Please sign in to select a plan.')
+          toast.error('Sign In Required', 'Please sign in to select a plan.')
           router.push('/login?redirect=/pricing')
           return
         }
-        toast.error(data.error || 'Failed to select plan')
+        toast.error('Plan Selection Failed', data.error || 'Failed to select plan.')
         return
       }
 
@@ -132,16 +132,12 @@ export default function PricingPage() {
       setSelectedPlan(planId)
 
       if (activePlan) {
-        toast.success(`Plan upgraded to ${planName}!`, {
-          description: `Your ${planName} plan is now active.`,
-        })
+        toast.success('Plan Upgraded', `Your ${planName} plan is now active.`)
       } else {
-        toast.success(`${planName} Plan Activated`, {
-          description: `Welcome! Your ${planName} plan is now active.`,
-        })
+        toast.success(`${planName} Plan Activated`, `Welcome! Your ${planName} plan is now active.`)
       }
     } catch {
-      toast.error('Something went wrong. Please try again.')
+      toast.error('Error', 'Something went wrong. Please try again.')
     } finally {
       setIsLoading(false)
     }
