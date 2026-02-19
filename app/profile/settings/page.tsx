@@ -9,11 +9,12 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { User, Mail, Lock, FileText, Loader2, AlertCircle, Save, Trash2, Eye, EyeOff } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function SettingsPage() {
+  const toast = useToast()
   const { data, isLoading, error } = useSWR("/api/profile", fetcher)
   const [name, setName] = useState("")
   const [nameLoaded, setNameLoaded] = useState(false)
@@ -41,7 +42,7 @@ export default function SettingsPage() {
     e.preventDefault()
 
     if (!name.trim()) {
-      toast.error("Name cannot be empty")
+      toast.error("Validation Error", "Name cannot be empty.")
       return
     }
 
@@ -57,14 +58,12 @@ export default function SettingsPage() {
       const result = await res.json()
 
       if (!res.ok) {
-        toast.error(result.error || "Failed to update name")
+toast.error("Update Failed", result.error || "Failed to update name.")
         return
       }
-
-      toast.success("Name updated successfully")
-      mutate("/api/profile")
+      toast.success("Name Updated", "Your display name has been updated.")
     } catch {
-      toast.error("Something went wrong")
+      toast.error("Update Failed", "Something went wrong.")
     } finally {
       setIsSaving(false)
     }
@@ -74,22 +73,22 @@ export default function SettingsPage() {
     e.preventDefault()
 
     if (!currentPassword || !newPassword || !confirmPassword) {
-      toast.error("All password fields are required")
+      toast.error("Validation Error", "All password fields are required.")
       return
     }
 
     if (newPassword.length < 6) {
-      toast.error("New password must be at least 6 characters")
+      toast.error("Validation Error", "New password must be at least 6 characters.")
       return
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error("New passwords do not match")
+      toast.error("Validation Error", "New passwords do not match.")
       return
     }
 
     if (currentPassword === newPassword) {
-      toast.error("New password must be different from current password")
+      toast.error("Validation Error", "New password must be different from current password.")
       return
     }
 
@@ -108,16 +107,15 @@ export default function SettingsPage() {
       const result = await res.json()
 
       if (!res.ok) {
-        toast.error(result.error || "Failed to change password")
+toast.error("Password Change Failed", result.error || "Failed to change password.")
         return
       }
-
-      toast.success("Password changed successfully")
+      toast.success("Password Changed", "Your password has been updated successfully.")
       setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
     } catch {
-      toast.error("Something went wrong")
+      toast.error("Password Change Failed", "Something went wrong.")
     } finally {
       setIsChangingPassword(false)
     }
@@ -127,17 +125,17 @@ export default function SettingsPage() {
     e.preventDefault()
 
     if (!resumeFile) {
-      toast.error("Please select a resume file")
+      toast.error("Resume Required", "Please select a resume file.")
       return
     }
 
     if (resumeFile.type !== "application/pdf") {
-      toast.error("Only PDF files are allowed")
+      toast.error("Invalid File", "Only PDF files are allowed.")
       return
     }
 
     if (resumeFile.size > 5 * 1024 * 1024) {
-      toast.error("File size must be less than 5MB")
+      toast.error("File Too Large", "File size must be less than 5MB.")
       return
     }
 
@@ -155,16 +153,16 @@ export default function SettingsPage() {
       const result = await res.json()
 
       if (!res.ok) {
-        toast.error(result.error || "Failed to upload resume")
+        toast.error("Upload Failed", result.error || "Failed to upload resume.")
         return
       }
 
-      toast.success("Resume uploaded successfully")
+      toast.success("Resume Uploaded", "Your resume has been uploaded successfully.")
       setResumeUrl(result.url)
       setResumeFile(null)
       mutate("/api/profile")
     } catch {
-      toast.error("Something went wrong")
+      toast.error("Upload Failed", "Something went wrong.")
     } finally {
       setIsUploadingResume(false)
     }
@@ -182,15 +180,15 @@ export default function SettingsPage() {
       const result = await res.json()
 
       if (!res.ok) {
-        toast.error(result.error || "Failed to delete resume")
+        toast.error("Delete Failed", result.error || "Failed to delete resume.")
         return
       }
 
-      toast.success("Resume deleted successfully")
+      toast.success("Resume Deleted", "Your resume has been removed.")
       setResumeUrl(null)
       mutate("/api/profile")
     } catch {
-      toast.error("Something went wrong")
+      toast.error("Delete Failed", "Something went wrong.")
     }
   }
 

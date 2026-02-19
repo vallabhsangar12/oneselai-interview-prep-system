@@ -10,12 +10,13 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Lock, Eye, EyeOff, CheckCircle2 } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 export default function ResetPasswordPage() {
   const router = useRouter()
   const params = useParams()
   const token = params.token as string
+  const toast = useToast()
 
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -28,12 +29,12 @@ export default function ResetPasswordPage() {
     e.preventDefault()
 
     if (password !== confirmPassword) {
-      toast.error("Passwords do not match")
+      toast.error("Validation Error", "Passwords do not match.")
       return
     }
 
     if (password.length < 6) {
-      toast.error("Password must be at least 6 characters")
+      toast.error("Validation Error", "Password must be at least 6 characters.")
       return
     }
 
@@ -49,16 +50,16 @@ export default function ResetPasswordPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || "Failed to reset password")
+        toast.error("Reset Failed", data.error || "Failed to reset password.")
         setIsLoading(false)
         return
       }
 
       setSuccess(true)
-      toast.success("Password reset successfully!")
+      toast.success("Password Reset", "Your password has been reset successfully.")
       setTimeout(() => router.push("/login"), 3000)
     } catch {
-      toast.error("Something went wrong. Please try again.")
+      toast.error("Reset Failed", "Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
     }

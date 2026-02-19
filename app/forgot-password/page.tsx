@@ -9,9 +9,10 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Mail, ArrowLeft, CheckCircle2 } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 export default function ForgotPasswordPage() {
+  const toast = useToast()
   const [email, setEmail] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [submitted, setSubmitted] = useState(false)

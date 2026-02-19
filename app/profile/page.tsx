@@ -9,11 +9,12 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { User, Mail, Calendar, Loader2, AlertCircle, Save } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 const fetcher = (url: string) => fetch(url, { credentials: "include" }).then((res) => res.json())
 
 export default function ProfilePage() {
+  const toast = useToast()
   const { data, error, isLoading } = useSWR("/api/profile", fetcher)
   const [name, setName] = useState("")
   const [nameLoaded, setNameLoaded] = useState(false)
@@ -29,7 +30,7 @@ export default function ProfilePage() {
     e.preventDefault()
 
     if (!name.trim()) {
-      toast.error("Name cannot be empty")
+      toast.error("Validation Error", "Name cannot be empty.")
       return
     }
 
@@ -45,14 +46,14 @@ export default function ProfilePage() {
       const result = await res.json()
 
       if (!res.ok) {
-        toast.error(result.error || "Failed to update profile")
+        toast.error("Update Failed", result.error || "Failed to update profile.")
         return
       }
 
-      toast.success("Profile updated successfully")
+      toast.success("Profile Updated", "Your profile has been saved.")
       mutate("/api/profile")
     } catch {
-      toast.error("Something went wrong")
+      toast.error("Update Failed", "Something went wrong.")
     } finally {
       setIsSaving(false)
     }

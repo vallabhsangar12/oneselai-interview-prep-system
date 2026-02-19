@@ -5,7 +5,7 @@ import { useRouter, useParams } from 'next/navigation'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Mic, MicOff, Video, VideoOff, Phone, Clock, AlertCircle, SkipForward, Volume2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/toast'
 import { getQuestions, type InterviewQuestion } from '@/lib/interview-questions'
 
 interface EmotionData {
@@ -32,6 +32,7 @@ interface SessionConfig {
 export default function InterviewConductPage() {
   const router = useRouter()
   const params = useParams()
+  const toast = useToast()
   const sessionId = params.id as string
 
   // Session config
@@ -100,7 +101,7 @@ export default function InterviewConductPage() {
         }
       } catch (err) {
         console.error('Error loading session:', err)
-        toast.error('Failed to load session. Using default questions.')
+        toast.error('Session Load Error', 'Failed to load session. Using default questions.')
         const fallback = getQuestions('technical', 'medium', 5)
         setQuestions(fallback)
         setTimeRemaining(fallback[0]?.timeLimit || 120)
@@ -125,7 +126,7 @@ export default function InterviewConductPage() {
           setIsRecording(true)
         }
       } catch {
-        toast.error('Unable to access camera or microphone')
+        toast.error('Media Access Denied', 'Unable to access camera or microphone.')
       }
     }
     initStream()
@@ -403,14 +404,14 @@ export default function InterviewConductPage() {
 
       if (res.ok) {
         const data = await res.json()
-        toast.success('Interview completed! Preparing your results...')
+        toast.success('Interview Completed', 'Great job! Preparing your detailed results...')
         router.push(`/interview/results/${data.result_id}`)
       } else {
         throw new Error('Failed to save results')
       }
     } catch (error) {
       console.error('Error saving results:', error)
-      toast.error('Error saving results. Redirecting to dashboard.')
+      toast.error('Results Error', 'Error saving results. Redirecting to dashboard.')
       router.push('/dashboard')
     }
   }

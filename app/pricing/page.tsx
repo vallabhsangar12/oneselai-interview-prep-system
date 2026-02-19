@@ -7,7 +7,7 @@ import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Check, Zap, Crown, Loader2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/toast'
 
 const PLANS = [
   {
@@ -70,6 +70,7 @@ const PLANS = [
 
 export default function PricingPage() {
   const router = useRouter()
+  const toast = useToast()
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
   const [activePlan, setActivePlan] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)

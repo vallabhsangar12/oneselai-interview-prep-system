@@ -26,7 +26,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`font-sans antialiased`}>
         <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
-          {children}
+          <ToastProvider>
+            {children}
+            <ToastContainer />
+          </ToastProvider>
           <Toaster richColors position="top-right" />
         </ThemeProvider>
 

@@ -11,12 +11,13 @@ import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Mail, Lock, ArrowRight, Eye, EyeOff } from "lucide-react"
 import { setLoggedIn } from "@/src/utils/auth"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 export default function LoginPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const redirect = searchParams.get("redirect")
+  const toast = useToast()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -38,16 +39,16 @@ export default function LoginPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || "Invalid credentials")
+        toast.error("Login Failed", data.error || "Invalid credentials. Please try again.")
         setIsLoading(false)
         return
       }
 
       setLoggedIn(true)
-      toast.success("Login successful")
+      toast.success("Login Successful", "Welcome back to Oneself AI.")
       router.push(redirect || "/")
     } catch {
-      toast.error("Something went wrong. Please try again.")
+      toast.error("Login Failed", "Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
     }

@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
 import { ArrowRight, X, CheckCircle2 } from 'lucide-react'
-import { toast } from 'sonner'
+import { useToast } from '@/components/toast'
 
 const INTERVIEW_TYPES = [
   { id: 'technical', label: 'Technical Interview' },
@@ -24,6 +24,7 @@ const DIFFICULTIES = [
 
 export default function InterviewSetupPage() {
   const router = useRouter()
+  const toast = useToast()
   const [isLoading, setIsLoading] = useState(false)
   const [hasSubscription, setHasSubscription] = useState(true)
   const [isChecking, setIsChecking] = useState(true)
@@ -121,7 +122,7 @@ export default function InterviewSetupPage() {
     e.preventDefault()
 
     if (!formData.jobRole.trim()) {
-      toast.error('Please enter a job role')
+      toast.error('Missing Information', 'Please enter a job role to continue.')
       return
     }
 
@@ -144,17 +145,17 @@ export default function InterviewSetupPage() {
 
       if (!res.ok) {
         const data = await res.json()
-        toast.error(data.error || 'Failed to create interview session')
+        toast.error('Session Error', data.error || 'Failed to create interview session.')
         setIsLoading(false)
         return
       }
 
       const data = await res.json()
-      toast.success('Interview session created!')
+      toast.success('Session Created', 'Your AI interview session is ready. Redirecting...')
       router.push(`/interview/session/${data.session_id}`)
     } catch (error) {
       console.error('[v0] Error creating session:', error)
-      toast.error('Something went wrong. Please try again.')
+      toast.error('Session Error', 'Something went wrong. Please try again.')
       setIsLoading(false)
     }
   }

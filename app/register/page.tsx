@@ -10,10 +10,11 @@ import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Mail, Lock, User, ArrowRight, Eye, EyeOff, FileText } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 export default function RegisterPage() {
   const router = useRouter()
+  const toast = useToast()
 
   const [formData, setFormData] = useState({
     name: "",
@@ -36,12 +37,12 @@ export default function RegisterPage() {
     e.preventDefault()
 
     if (formData.password !== formData.confirmPassword) {
-      toast.error("Passwords do not match")
+      toast.error("Validation Error", "Passwords do not match.")
       return
     }
 
     if (formData.password.length < 6) {
-      toast.error("Password must be at least 6 characters")
+      toast.error("Validation Error", "Password must be at least 6 characters.")
       return
     }
 
@@ -62,7 +63,7 @@ export default function RegisterPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || "Registration failed")
+        toast.error("Registration Failed", data.error || "Could not create account. Please try again.")
         return
       }
 
@@ -89,10 +90,10 @@ export default function RegisterPage() {
         }
       }
 
-      toast.success("Account created! Please sign in.")
+      toast.success("Account Created", "Welcome to Oneself AI! Please sign in to get started.")
       router.push("/login")
     } catch {
-      toast.error("Something went wrong. Please try again.")
+      toast.error("Registration Failed", "Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
     }
