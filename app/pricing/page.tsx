@@ -1,12 +1,12 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Navbar } from '@/components/navbar'
 import { Footer } from '@/components/footer'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { Check, Zap } from 'lucide-react'
+import { Check, Zap, Crown, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 
 const PLANS = [
@@ -26,7 +26,6 @@ const PLANS = [
       'Standard resume',
     ],
     cta: 'Get Started',
-    highlighted: false,
   },
   {
     id: 'basic',
@@ -45,7 +44,7 @@ const PLANS = [
       'Interview transcripts',
     ],
     cta: 'Subscribe Now',
-    highlighted: true,
+    popular: true,
   },
   {
     id: 'pro',
@@ -66,16 +65,47 @@ const PLANS = [
       'Career guidance',
     ],
     cta: 'Subscribe Now',
-    highlighted: false,
   },
 ]
 
 export default function PricingPage() {
   const router = useRouter()
   const [selectedPlan, setSelectedPlan] = useState<string | null>(null)
+  const [activePlan, setActivePlan] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
+  const [isFetchingPlan, setIsFetchingPlan] = useState(true)
 
-  const handleSelectPlan = async (planId: string) => {
+  // Fetch user's current plan on load
+  useEffect(() => {
+    const fetchCurrentPlan = async () => {
+      try {
+        const res = await fetch('/api/subscriptions/check', { credentials: 'include' })
+        if (res.ok) {
+          const data = await res.json()
+          if (data.has_subscription && data.plan && data.plan !== 'none') {
+            setActivePlan(data.plan)
+            setSelectedPlan(data.plan)
+          }
+        }
+      } catch {
+        // User not logged in or no subscription
+      } finally {
+        setIsFetchingPlan(false)
+      }
+    }
+    fetchCurrentPlan()
+  }, [])
+
+  const handleCardClick = useCallback((planId: string) => {
+    setSelectedPlan(planId)
+  }, [])
+
+  const handleSelectPlan = useCallback(async (planId: string) => {
+    if (activePlan === planId) {
+      toast.info('This is already your active plan.')
+      return
+    }
+
     setIsLoading(true)
     try {
       const res = await fetch('/api/subscriptions/select-plan', {
@@ -87,19 +117,34 @@ export default function PricingPage() {
 
       if (!res.ok) {
         const data = await res.json()
+        if (res.status === 401) {
+          toast.error('Please sign in to select a plan.')
+          router.push('/login?redirect=/pricing')
+          return
+        }
         toast.error(data.error || 'Failed to select plan')
-        setIsLoading(false)
         return
       }
 
-      toast.success(`Successfully selected ${planId} plan!`)
-      router.push('/dashboard')
-    } catch (error) {
-      console.error('[v0] Plan selection error:', error)
+      const planName = PLANS.find(p => p.id === planId)?.name || planId
+      setActivePlan(planId)
+      setSelectedPlan(planId)
+
+      if (activePlan) {
+        toast.success(`Plan upgraded to ${planName}!`, {
+          description: `Your ${planName} plan is now active.`,
+        })
+      } else {
+        toast.success(`${planName} Plan Activated`, {
+          description: `Welcome! Your ${planName} plan is now active.`,
+        })
+      }
+    } catch {
       toast.error('Something went wrong. Please try again.')
+    } finally {
       setIsLoading(false)
     }
-  }
+  }, [activePlan, router])
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -126,65 +171,116 @@ export default function PricingPage() {
         <section className="py-20 sm:py-28">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="grid md:grid-cols-3 gap-8 lg:gap-6">
-              {PLANS.map((plan) => (
-                <Card
-                  key={plan.id}
-                  className={`relative flex flex-col p-8 transition-all duration-300 ${
-                    plan.highlighted
-                      ? 'border-2 border-purple-600 shadow-xl shadow-purple-500/20 ring-1 ring-purple-600/20 scale-105'
-                      : 'border border-border hover:border-purple-500/30'
-                  }`}
-                >
-                  {plan.highlighted && (
-                    <div className="absolute -top-4 left-1/2 -translate-x-1/2">
-                      <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-1 text-xs font-semibold text-white">
-                        <Zap className="h-3 w-3" /> Most Popular
-                      </span>
-                    </div>
-                  )}
+              {PLANS.map((plan) => {
+                const isActive = activePlan === plan.id
+                const isSelected = selectedPlan === plan.id
+                const isPopular = plan.popular
 
-                  <div className="mb-6">
-                    <h3 className="text-2xl font-bold text-foreground">{plan.name}</h3>
-                    <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
-                  </div>
-
-                  <div className="mb-6">
-                    <div className="flex items-baseline gap-1">
-                      <span className="text-5xl font-bold text-foreground">{plan.price}</span>
-                      <span className="text-muted-foreground">{plan.period}</span>
-                    </div>
-                    <p className="mt-3 text-sm font-semibold text-purple-400">
-                      {typeof plan.interviews_per_day === 'number'
-                        ? `${plan.interviews_per_day} interviews/day`
-                        : plan.interviews_per_day}
-                    </p>
-                  </div>
-
-                  <Button
-                    onClick={() => handleSelectPlan(plan.id)}
-                    disabled={isLoading}
-                    className={`mb-8 w-full ${
-                      plan.highlighted
-                        ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl'
-                        : 'border border-purple-500/30 hover:bg-purple-500/10'
-                    }`}
-                    variant={plan.highlighted ? 'default' : 'outline'}
+                return (
+                  <Card
+                    key={plan.id}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select ${plan.name} plan`}
+                    aria-pressed={isSelected}
+                    onClick={() => handleCardClick(plan.id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault()
+                        handleCardClick(plan.id)
+                      }
+                    }}
+                    className={`relative flex flex-col p-8 cursor-pointer transition-all duration-300 ease-out outline-none
+                      ${isSelected
+                        ? 'border-2 border-purple-500 shadow-xl shadow-purple-500/15 bg-purple-500/5 -translate-y-1 ring-1 ring-purple-500/30'
+                        : isPopular
+                          ? 'border-2 border-purple-600/40 shadow-lg shadow-purple-500/10'
+                          : 'border border-border'
+                      }
+                      ${!isSelected ? 'hover:border-purple-500/50 hover:shadow-lg hover:shadow-purple-500/10 hover:-translate-y-0.5' : ''}
+                      focus-visible:ring-2 focus-visible:ring-purple-500 focus-visible:ring-offset-2 focus-visible:ring-offset-background
+                    `}
                   >
-                    {isLoading ? 'Processing...' : plan.cta}
-                  </Button>
+                    {/* Badges */}
+                    <div className="absolute -top-4 left-1/2 -translate-x-1/2 flex gap-2">
+                      {isPopular && !isActive && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-4 py-1 text-xs font-semibold text-white shadow-md">
+                          <Zap className="h-3 w-3" /> Most Popular
+                        </span>
+                      )}
+                      {isActive && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-gradient-to-r from-purple-600 to-blue-600 px-3 py-1 text-xs font-medium text-white shadow-md">
+                          <Crown className="h-3 w-3" /> Current Plan
+                        </span>
+                      )}
+                    </div>
 
-                  <div className="flex-1">
-                    <ul className="space-y-4">
-                      {plan.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-start gap-3">
-                          <Check className="h-5 w-5 flex-shrink-0 text-purple-600 mt-0.5" />
-                          <span className="text-sm text-foreground">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </Card>
-              ))}
+                    {/* Selection indicator */}
+                    {isSelected && !isActive && (
+                      <div className="absolute top-4 right-4">
+                        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-purple-600">
+                          <Check className="h-3.5 w-3.5 text-white" />
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="mb-6">
+                      <h3 className="text-2xl font-bold text-foreground">{plan.name}</h3>
+                      <p className="mt-2 text-sm text-muted-foreground">{plan.description}</p>
+                    </div>
+
+                    <div className="mb-6">
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-5xl font-bold text-foreground">{plan.price}</span>
+                        <span className="text-muted-foreground">{plan.period}</span>
+                      </div>
+                      <p className="mt-3 text-sm font-semibold text-purple-400">
+                        {typeof plan.interviews_per_day === 'number'
+                          ? `${plan.interviews_per_day} interviews/day`
+                          : plan.interviews_per_day}
+                      </p>
+                    </div>
+
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleSelectPlan(plan.id)
+                      }}
+                      disabled={isLoading || isFetchingPlan}
+                      className={`mb-8 w-full rounded-xl font-medium transition-all duration-200 ${
+                        isActive
+                          ? 'bg-muted text-muted-foreground cursor-default hover:bg-muted'
+                          : isSelected
+                            ? 'bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white font-semibold shadow-lg hover:shadow-xl hover:scale-[1.02]'
+                            : 'border border-purple-500/30 hover:bg-purple-500/10'
+                      }`}
+                      variant={isActive ? 'secondary' : isSelected ? 'default' : 'outline'}
+                    >
+                      {isLoading ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : isActive ? (
+                        'Current Plan'
+                      ) : (
+                        plan.cta
+                      )}
+                    </Button>
+
+                    <div className="flex-1">
+                      <ul className="space-y-4">
+                        {plan.features.map((feature, idx) => (
+                          <li key={idx} className="flex items-start gap-3">
+                            <Check className="h-5 w-5 flex-shrink-0 text-purple-600 mt-0.5" />
+                            <span className="text-sm text-foreground">{feature}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </Card>
+                )
+              })}
             </div>
 
             {/* FAQ */}

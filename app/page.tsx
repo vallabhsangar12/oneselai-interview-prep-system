@@ -156,10 +156,10 @@ export default function Home() {
                   size="lg"
                   variant="outline"
                   onClick={scrollToDemo}
-                  className="min-w-[180px] border-purple-500/30 hover:bg-purple-500/10 hover:border-purple-500/50 transition-all duration-300"
+                  className="min-w-[180px] rounded-xl font-medium border-purple-500/40 bg-purple-500/5 hover:bg-purple-500/15 hover:border-purple-400 hover:scale-105 hover:shadow-lg hover:shadow-purple-500/20 transition-all duration-200 ease-out"
                 >
                   <Play className="mr-2 h-4 w-4" />
-                  Try Demo
+                  Watch Demo
                 </Button>
               </div>
             </div>
@@ -246,7 +246,7 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="mt-8 flex flex-col items-center gap-4 sm:flex-row sm:justify-center">
+              <div className="mt-8 flex justify-center">
                 <Button
                   size="lg"
                   onClick={handleStartPractice}
@@ -256,7 +256,6 @@ export default function Home() {
                   {isCheckingAuth ? "Checking..." : "Start Practicing Now"}
                   {!isCheckingAuth && <ArrowRight className="ml-2 h-4 w-4" />}
                 </Button>
-                <p className="text-sm text-muted-foreground">No credit card required</p>
               </div>
             </div>
           </div>
@@ -318,7 +317,6 @@ export default function Home() {
                 <h3 className="mb-6 text-2xl font-bold text-foreground">Ready to Get Started?</h3>
                 <p className="mb-8 leading-relaxed text-muted-foreground">
                   Create a free account and start practicing for your next interview today.
-                  No credit card required.
                 </p>
                 <div className="space-y-3">
                   <Button
