@@ -32,7 +32,7 @@ export default function ForgotPasswordPage() {
       const data = await res.json()
 
       if (!res.ok) {
-        toast.error(data.error || "Something went wrong")
+        toast.error("Request Failed", data.error || "Something went wrong.")
         setIsLoading(false)
         return
       }
@@ -42,7 +42,7 @@ export default function ForgotPasswordPage() {
         setResetUrl(data.resetUrl)
       }
     } catch {
-      toast.error("Something went wrong. Please try again.")
+      toast.error("Request Failed", "Something went wrong. Please try again.")
     } finally {
       setIsLoading(false)
     }

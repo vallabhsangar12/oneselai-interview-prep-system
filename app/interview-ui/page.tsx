@@ -13,10 +13,11 @@ import {
   type InterviewSetupData,
 } from "@/components/pre-interview-setup"
 import { Mic, MicOff, Video, VideoOff, Phone, ChevronRight } from "lucide-react"
-import { toast } from "sonner"
+import { useToast } from "@/components/toast"
 
 export default function InterviewPage() {
   const router = useRouter()
+  const toast = useToast()
 
   // Core state
   const [sessionId, setSessionId] = useState<string | null>(null)
@@ -102,7 +103,7 @@ export default function InterviewPage() {
         streamRef.current = stream
         if (videoRef.current) videoRef.current.srcObject = stream
       } catch {
-        toast.error("Camera/microphone access denied")
+        toast.error("Media Access Denied", "Camera/microphone access denied.")
       }
     }
 
@@ -147,10 +148,10 @@ export default function InterviewPage() {
       setCurrentQuestion(0)
       setShowSetup(false)
       setIsInterviewActive(true)
-      toast.success("Interview started!")
+      toast.success("Interview Started", "Your AI interview session has begun.")
     } catch (err) {
       console.error("Interview start failed:", err)
-      toast.error("Failed to start interview. Please try again.")
+      toast.error("Interview Error", "Failed to start interview. Please try again.")
     }
   }
 
@@ -163,7 +164,7 @@ export default function InterviewPage() {
     setTranscript("")
     speechSynthesis.cancel()
     try { (recognitionRef.current as unknown as { stop: () => void })?.stop() } catch { /* ignore */ }
-    toast.info("Interview ended")
+    toast.info("Interview Ended", "Your interview session has ended.")
   }
 
   // Next question
@@ -172,7 +173,7 @@ export default function InterviewPage() {
       setCurrentQuestion((prev) => prev + 1)
       setTranscript("")
     } else {
-      toast.success("All questions completed!")
+      toast.success("Interview Completed", "All questions completed! Great job.")
       endInterview()
     }
   }
